@@ -18,12 +18,24 @@ class fnirs:
     
     }
     def __init__(self) -> None:
+        self.file_name = ""
         self.data = []  # create an empty list to collect the data
         self.light_source_wavelengths_data = []
         self.legend_data = []
         self.events = []
         self.average = []
 
+
+    def copy(self):
+        result = fnirs()
+        result.file_name = self.file_name
+        result.data = self.data.copy()
+        result.light_source_wavelengths_data = self.light_source_wavelengths_data.copy()
+        result.legend_data = self.legend_data.copy()
+        result.events = self.events.copy()
+        result.average = self.average.copy()
+        result.edges_for_events = self.edges_for_events.copy()
+        return result
 
     def _parse_line(self,line):
 
@@ -34,8 +46,8 @@ class fnirs:
         # if there are no matches
         return None, None
     
-    def fnirs_parser(self,filepath,event_type = "test"):
-
+    def fnirs_parser(self,filepath,event_type = "test",print_log = False):
+        self.file_name = filepath
         # open the file and read through it line by line
         with open(filepath, 'r') as file_object:
             line = file_object.readline()
@@ -45,37 +57,45 @@ class fnirs:
 
                 if key == 'export_of':
                     export_path = match.group('export')
-                    print("found export path: " + export_path)
+                    if(print_log):
+                        print("found export path: " + export_path)
 
                 if key == 'export_date':
                     export_data = match.group('export_date')
-                    print("found export data: " + export_data)
+                    if(print_log):
+                        print("found export data: " + export_data)
                 
                 if key == 'start_of_measurment':
                     start_of_measurment = match.group('start_of_measurment')
-                    print("found start of measurment: " + start_of_measurment)
+                    if(print_log):
+                        print("found start of measurment: " + start_of_measurment)
 
                 if key == 'sample_rate':
                     sample_rate = match.group('sample_rate')
                     sample_rate = float(sample_rate)
-                    print("found sample rate: ", str(sample_rate))
+                    if(print_log):
+                        print("found sample rate: ", str(sample_rate))
 
                 if key == 'duration':
                     duration = match.group('duration')
                     duration = float(duration)
-                    print("found duration: ", str(duration))
+                    if(print_log):
+                        print("found duration: ", str(duration))
                 
                 if key == 'number_of_samples':
                     nsamples = match.group('nsamples')
                     nsamples = int(nsamples)
-                    print("found number of samples: ", str(nsamples))
+                    if(print_log):
+                        print("found number of samples: ", str(nsamples))
                 
                 if key == 'description':
                     #parsing of description
-                    print("Description is not implemented")
+                    if(print_log):
+                        print("Description is not implemented")
                 
                 if key == 'light_source_wavelengths':
-                    print("found light_source_wavelengths")
+                    if(print_log):
+                        print("found light_source_wavelengths")
                     # read legend line (device, index, wavelengths) we dont need it
                     line= file_object.readline()
                     line= file_object.readline()
@@ -90,7 +110,8 @@ class fnirs:
                         line = file_object.readline()
 
                 if key == 'legend':
-                    print("found legend")
+                    if(print_log):
+                        print("found legend")
                     # read legend line we dont need it
                     line = file_object.readline()
                     line = file_object.readline()
@@ -108,7 +129,8 @@ class fnirs:
                         line = line.strip().split('\t')
 
                 if key == 'data':
-                    print("found data")
+                    if(print_log):
+                        print("found data")
                     # read legend line we dont need it
                     line = file_object.readline()
                     while line.strip():
@@ -133,7 +155,7 @@ class fnirs:
 
     def print_plot_two_chanel(self,index,if_events = False):
         if (index > -1) and index < (len(self.data.columns)-1):
-            plt.suptitle('Graph')
+            plt.suptitle('Graph '+self.file_name)
             ax1 = plt.subplot(1,1,1)
             
             OHb = self.data[self.data.columns[index]].values.tolist()
@@ -151,7 +173,7 @@ class fnirs:
             print("index must be from 0 to ", len(self.data.columns)-1)
     
     def print_events(self):
-        plt.suptitle('Events ')
+        plt.suptitle('Events ' + self.file_name)
         for i in self.events:
             print(i)
             plt.axvline(i,color = 'green',label = "events")
@@ -181,13 +203,12 @@ class fnirs:
 
     def print_average_stairs(self,index):
         plt.figure()
-        plt.suptitle('Average values')
+        plt.suptitle('Average values ' + self.file_name)
         ax1 = plt.subplot(1,1,1)
 
-        print(self.edges_for_events)
+        # print(self.edges_for_events)
 
         OHb = self.average[self.average.columns[index]].values.tolist()
-        print(OHb)
         ax1.stairs(OHb,color="red",label=self.average.columns[index],baseline=None,edges = self.edges_for_events)
 
         HHb = self.average[self.average.columns[index+1]].values.tolist()
@@ -197,4 +218,11 @@ class fnirs:
         ax1.stairs(difference,color="black",label="difference",baseline=None,edges = self.edges_for_events)
         plt.legend()
         plt.show()
-        
+
+    def compare_easy(self,second,mode):
+        result = self.copy()
+        result.file_name = result.file_name + " & " + second.file_name
+        for i in range(0,len(self.average)-1):
+            for j in range(0,len(self.average.columns)-1):
+                result.average.iloc[i,j] = self.average.iloc[i,j] * mode[0] + second.average.iloc[i,j] * mode[1]
+        return result
