@@ -3,6 +3,8 @@ vcpt*
 fon*
 eo*
 eeg*.edf
+*.oxy*
+*.xml
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

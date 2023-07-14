@@ -17,14 +17,15 @@ class fnirs:
     'data':re.compile(r'1	2	3	4.*\n'),
     
     }
-    def __init__(self) -> None:
+    def __init__(self,filepath = "",event_type = "test",print_log = False) -> None:
         self.file_name = ""
         self.data = []  # create an empty list to collect the data
         self.light_source_wavelengths_data = []
         self.legend_data = []
         self.events = []
         self.average = []
-
+        if (filepath != ""):
+            self.fnirs_parser(filepath,event_type,print_log)
 
     def copy(self):
         result = fnirs()
@@ -36,6 +37,10 @@ class fnirs:
         result.average = self.average.copy()
         result.edges_for_events = self.edges_for_events.copy()
         return result
+    
+    def export(self,path = ""):
+        # self.average.to_excel(path + self.file_name + "output.xlsx")
+        self.average.to_csv(path + self.file_name + "output.csv",index=False) 
 
     def _parse_line(self,line):
 
@@ -47,7 +52,6 @@ class fnirs:
         return None, None
     
     def fnirs_parser(self,filepath,event_type = "test",print_log = False):
-        self.file_name = filepath
         # open the file and read through it line by line
         with open(filepath, 'r') as file_object:
             line = file_object.readline()
@@ -139,12 +143,17 @@ class fnirs:
                         line = file_object.readline()
                 line = file_object.readline()
 
+        filepath = filepath.split('/')
+        self.file_name = filepath[len(filepath)-1]
         # create a pandas DataFrame from the list of dicts
         self.light_source_wavelengths_data = pd.DataFrame(self.light_source_wavelengths_data)
         self.legend_data = pd.DataFrame(self.legend_data)
         self.data = pd.DataFrame(self.data)
         self.events = self.data[self.data.columns[[len(self.data.columns)-1]]]
-        self.events = self.events.index[self.events[self.events.columns[0]] == event_type].tolist()      
+        if event_type!='fon':
+         self.events = self.events.index[self.events[self.events.columns[0]] == event_type].tolist()   
+        else:
+            self.events = self.events.index[self.events[self.events.columns[0]] == 'O1'].tolist() + self.events.index[self.events[self.events.columns[0]] == 'C1'].tolist()
         self.data = self.data.drop(self.data.columns[[0,len(self.data.columns)-1]], axis=1) 
         self.data.columns = self.legend_data['Trace (Measurement)']
         self.data = self.data.astype(float)
@@ -152,6 +161,10 @@ class fnirs:
         self.edges_for_events = self.events.copy()
         self.edges_for_events.insert(0,0)
         self.edges_for_events.append(len(self.data.index))
+
+    def normalize_data(self):
+        # self.data = (self.data-self.data.mean())/self.data.std()
+        self.data =(self.data-self.data.min())/(self.data.max()-self.data.min())
 
     def print_plot_two_chanel(self,index,if_events = False):
         if (index > -1) and index < (len(self.data.columns)-1):
