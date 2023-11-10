@@ -132,6 +132,7 @@ class Ui_MainWindow(object):
         self.addPatient = QtWidgets.QPushButton(self.page_2)
         self.addPatient.setObjectName("addPatient")
         self.formLayout_2.setWidget(5, QtWidgets.QFormLayout.FieldRole, self.addPatient)
+        # _______________
         self.infoListWidget = QtWidgets.QListWidget(self.page_2)
         self.infoListWidget.setObjectName("infoListWidget")
         self.formLayout_2.setWidget(4, QtWidgets.QFormLayout.FieldRole, self.infoListWidget)

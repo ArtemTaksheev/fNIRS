@@ -1,21 +1,12 @@
-import numpy as np
-import pandas as pd
 from fnirs import fnirs
 import os as os
 class patient_fnirs:
 
-    def __init__(self,name, fon_file, conditions) -> None:
+    def __init__(self,name, file_path, marks_for_files) -> None:
         self.patient_name = name
-
-        # self.fon_file = fnirs(fon_file,event_type="fon")
-        # self.conditions = []
-        # for i in conditions:
-        #     self.conditions.append(fnirs(i,event_type="T1"))
         self.data = []
-        if (fon_file != ""):
-                self.data.append(fnirs(fon_file,event_type="fon"))
-        for i in conditions:
-            self.data.append(fnirs(i,event_type="T1"))
+        for i in range(0,len(file_path)):
+            self.data.append(fnirs(file_path[i],event_type=marks_for_files[i]))
 
     def copy(self):
         print("not realized yet")
@@ -42,3 +33,12 @@ class patient_fnirs:
     
     def get_last_data(self):
         return self.data[len(self.data) - 1]
+    
+    def add_filtered(self,index):
+        filtered = self.data[index].create_filtered()
+        self.data.append(filtered)
+
+    def patient_filter(self):
+        for i in self.data:
+            i.filter()
+    

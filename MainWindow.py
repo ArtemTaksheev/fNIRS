@@ -2,7 +2,6 @@ from PyQt5.QtWidgets import *
 import sys
 
 import project as project # design of main window
-
 from patient_fnirs import patient_fnirs
 
 class MainWindow(QMainWindow, project.Ui_MainWindow): # main window
@@ -38,6 +37,10 @@ class MainWindow(QMainWindow, project.Ui_MainWindow): # main window
         self.nextChannel.clicked.connect(lambda: self.show_next_channel())
         self.compareButton.clicked.connect(lambda: self.compare())
         self.exportButton.clicked.connect(lambda: self.export_data())
+        self.showFilteredButton.clicked.connect(lambda: self.filter())
+
+    def filter(self):
+        self.data_visualise(self.currentChannel,"filter")
 
     def update_current_patient(self,index):
         if self.patients:   
@@ -48,8 +51,8 @@ class MainWindow(QMainWindow, project.Ui_MainWindow): # main window
             for i in self.patients[self.currentPatient].data:
                 self.resComboBox.addItem(i.file_name)
                 # add to compare cBox
-                self.firstResearchComboBox.addItem(i.file_name)
-                self.secondResearchComboBox.addItem(i.file_name)
+                # self.firstResearchComboBox.addItem(i.file_name)
+                # self.secondResearchComboBox.addItem(i.file_name)
             # self.data_visualise(self.currentConditionsIndex,self.plotType)
 
     def update_current_condition(self,index):
@@ -62,7 +65,7 @@ class MainWindow(QMainWindow, project.Ui_MainWindow): # main window
             self.currentChannel = self.currentChannel - 2
             self.data_visualise(self.currentChannel,self.plotType)
     def show_next_channel(self):
-         if self.currentChannel < len(self.patients[self.currentPatient].data[self.currentConditionsIndex].data) - 1:
+         if self.currentChannel < len(self.patients[self.currentPatient].data[self.currentConditionsIndex].data) - 2:
             self.currentChannel = self.currentChannel + 2
             self.data_visualise(self.currentChannel,self.plotType)
 
@@ -73,7 +76,6 @@ class MainWindow(QMainWindow, project.Ui_MainWindow): # main window
         self.statusbar.showMessage("Compare succesffully")
         
     def export_data(self):
-        # path = QFileDialog.getSaveFileName(self,"Save results","/results",)
         folderpath = QFileDialog.getExistingDirectory(self, 'Select Folder')
         self.patients[self.currentPatient].export(folderpath)
         self.statusbar.showMessage("Export was succesffull")
@@ -102,6 +104,10 @@ class MainWindow(QMainWindow, project.Ui_MainWindow): # main window
         for i in self.patients[self.currentPatient].data:
             i.genegate_average_values()
         self.vPComboBox.addItem(patient.patient_name)
+        for i in self.patients[self.currentPatient].data:
+                # add to compare cBox
+                self.firstResearchComboBox.addItem(i.file_name)
+                self.secondResearchComboBox.addItem(i.file_name)
 
     def data_visualise(self,chanel,type):
         self.plot.axes.cla()
@@ -114,6 +120,11 @@ class MainWindow(QMainWindow, project.Ui_MainWindow): # main window
             self.plotType = "aver"
             self.plot.print_average_stairs(self.patients[self.currentPatient].data[self.currentConditionsIndex],chanel)
             self.statusbar.showMessage("Show average data")
+        if type == "filter":
+            self.patients[self.currentPatient].add_filtered(self.currentConditionsIndex)
+            self.resComboBox.addItem(self.patients[self.currentPatient].get_last_data().file_name)
+            self.currentConditionsIndex = len (self.patients[self.currentPatient].data) - 1
+            self.plot.print_plot_two_chanel(self.patients[self.currentPatient].data[self.currentConditionsIndex],chanel)
         self.plot.draw()
 
 

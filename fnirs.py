@@ -2,7 +2,7 @@ import numpy as np
 import re
 import pandas as pd
 import matplotlib.pyplot as plt
-
+from scipy import signal
 class fnirs:
     rx_dict = {
     'export_of': re.compile(r'OxySoft export of:\t(?P<export>.*)\n'),
@@ -17,15 +17,23 @@ class fnirs:
     'data':re.compile(r'1	2	3	4.*\n'),
     
     }
-    def __init__(self,filepath = "",event_type = "test",print_log = False) -> None:
+    def __init__(self,filepath = "",event_type = ["test"],print_log = False) -> None:
         self.file_name = ""
         self.data = []  # create an empty list to collect the data
         self.light_source_wavelengths_data = []
         self.legend_data = []
         self.events = []
+        self.edges_for_events = []
         self.average = []
+        self.sample_rate = 0
         if (filepath != ""):
             self.fnirs_parser(filepath,event_type,print_log)
+    # def __init__(self,name,dataframe):
+    #     self.name = name
+    #     self.data = dataframe
+    #     self.legend_data = []
+    #     self.events = []
+    #     self.average = []
 
     def copy(self):
         result = fnirs()
@@ -33,9 +41,10 @@ class fnirs:
         result.data = self.data.copy()
         result.light_source_wavelengths_data = self.light_source_wavelengths_data.copy()
         result.legend_data = self.legend_data.copy()
-        result.events = self.events.copy()
+        result.events = self.events
         result.average = self.average.copy()
         result.edges_for_events = self.edges_for_events.copy()
+        result.sample_rate = self.sample_rate
         return result
     
     def export(self,path = ""):
@@ -51,7 +60,7 @@ class fnirs:
         # if there are no matches
         return None, None
     
-    def fnirs_parser(self,filepath,event_type = "test",print_log = False):
+    def fnirs_parser(self,filepath,event_type = ["test"],print_log = False):
         # open the file and read through it line by line
         with open(filepath, 'r') as file_object:
             line = file_object.readline()
@@ -76,7 +85,7 @@ class fnirs:
 
                 if key == 'sample_rate':
                     sample_rate = match.group('sample_rate')
-                    sample_rate = float(sample_rate)
+                    self.sample_rate = float(sample_rate)
                     if(print_log):
                         print("found sample rate: ", str(sample_rate))
 
@@ -149,12 +158,21 @@ class fnirs:
         self.light_source_wavelengths_data = pd.DataFrame(self.light_source_wavelengths_data)
         self.legend_data = pd.DataFrame(self.legend_data)
         self.data = pd.DataFrame(self.data)
-        self.events = self.data[self.data.columns[[len(self.data.columns)-1]]]
-        if event_type!='fon':
-         self.events = self.events.index[self.events[self.events.columns[0]] == event_type].tolist()   
-        else:
-            self.events = self.events.index[self.events[self.events.columns[0]] == 'O1'].tolist() + self.events.index[self.events[self.events.columns[0]] == 'C1'].tolist()
-        self.data = self.data.drop(self.data.columns[[0,len(self.data.columns)-1]], axis=1) 
+        self.data = self.data.drop(self.data.columns[[0]], axis=1)
+        # self.events = self.data[self.data.columns[[len(self.data.columns)-1]]]
+        self.events = self.data[self.data.columns[[len(self.legend_data)]]]
+        event_tmp = []
+        for i in range (0,len(event_type)):
+            event_tmp = event_tmp + self.events.index[self.events[self.events.columns[0]] == event_type[i]].tolist() 
+        self.events = event_tmp
+        # if event_type!='fon':
+        #  self.events = self.events.index[self.events[self.events.columns[0]] == event_type].tolist()   
+        # else:
+        #     self.events = self.events.index[self.events[self.events.columns[0]] == 'O1'].tolist() + self.events.index[self.events[self.events.columns[0]] == 'C1'].tolist()
+        
+        
+        while len(self.data.columns) != len(self.legend_data):
+            self.data = self.data.drop(self.data.columns[[len(self.data.columns)-1]], axis=1) #if we have none columns
         self.data.columns = self.legend_data['Trace (Measurement)']
         self.data = self.data.astype(float)
 
@@ -239,3 +257,22 @@ class fnirs:
             for j in range(0,len(self.average.columns)-1):
                 result.average.iloc[i,j] = self.average.iloc[i,j] * mode[0] + second.average.iloc[i,j] * mode[1]
         return result
+    def create_filtered(self):
+        b, a = signal.butter(8, [0.025,0.45], 'bandpass')   # Конфигурационный фильтр 8 указывает порядок фильтра
+        filtered = signal.filtfilt(b, a, self.data)  # данные - это сигнал, который нужно отфильтровать
+        tmp = self.copy()
+        tmp.data = pd.DataFrame(filtered)
+        tmp.data.columns = self.data.columns
+        tmp.file_name = tmp.file_name + "_filtered"
+        tmp.genegate_average_values()
+        return tmp
+    
+    def filter(self): #filter data 
+        sos = signal.butter(3,[0.01,0.09],btype='bandpass',output='sos',fs = self.sample_rate)
+        result = pd.DataFrame()
+        for i in range(0,len(self.data.columns)):
+            
+            what_filter = self.data[self.data.columns[i]].values.tolist()
+            filtered = signal.sosfilt(sos, what_filter)  # данные - это сигнал, который нужно отфильтровать
+            result.insert(i,self.data.columns[i],filtered)
+        self.data = result
